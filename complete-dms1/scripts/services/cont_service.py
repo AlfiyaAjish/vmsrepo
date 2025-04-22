@@ -112,3 +112,10 @@ def remove_container_route(name: str, params: ContainerRemoveRequest = Body(...)
 @container_router.post(Endpoints.CONTAINER_LIST.replace("/container", ""))
 def list_containers_route(params: ContainerListRequest = Body(...), current_user: TokenData = Depends(get_current_user_from_token)):
     return list_containers_with_filters(params, current_user)
+
+@container_router.get("/test-token")
+def test_token_route(current_user: TokenData = Depends(get_current_user_from_token)):
+    return {
+        "username": current_user.username,
+        "role": current_user.role
+    }
