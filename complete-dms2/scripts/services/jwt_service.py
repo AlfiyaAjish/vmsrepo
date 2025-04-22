@@ -90,5 +90,5 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
     return Token(access_token=access_token, token_type="bearer", expires_in=3600)
 
 @auth_router.post(Endpoints.AUTH_LOGOUT)
-def logout_user(current_user: TokenData = Depends(get_current_user)):
+def logout_user(current_user: TokenData = Depends(get_current_user_from_token)):
     return {"message": f"User '{current_user.username}' logged out successfully"}
