@@ -78,8 +78,8 @@ from fastapi.security import OAuth2PasswordBearer
 from scripts.constants.app_configuration import settings
 from scripts.constants.app_constants import *
 from scripts.models.jwt_model import TokenData
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+from scripts.constants.api_endpoints import Endpoints
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=Endpoints.AUTH_LOGIN)
 
 SECRET_KEY = settings.JWT_SECRET
 ALGORITHM = settings.JWT_ALGORITHM
