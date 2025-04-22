@@ -164,7 +164,7 @@ def verify_access_token(token: str) -> Optional[TokenData]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=INVALID_TOKEN)
 
 # --- Dependency Injection for FastAPI Routers ---
-async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> TokenData:
+def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> TokenData:
     token_data = verify_access_token(token)
 
     if token_data:
