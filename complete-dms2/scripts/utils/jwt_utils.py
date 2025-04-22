@@ -71,50 +71,67 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from jose import jwt, JWTError, ExpiredSignatureError
-from fastapi import HTTPException, status, Depends
+from jose import JWTError, ExpiredSignatureError, jwt
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from passlib.context import CryptContext
 
 from scripts.constants.app_configuration import settings
 from scripts.constants.app_constants import *
 from scripts.models.jwt_model import TokenData
-from scripts.constants.api_endpoints import Endpoints
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=Endpoints.AUTH_LOGIN)
+from scripts.utils.mongo_utils import MongoDBConnection
+
+# Token URL must match the login endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 SECRET_KEY = settings.JWT_SECRET
 ALGORITHM = settings.JWT_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+mongodb = MongoDBConnection()
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def get_user_by_username(username: str) -> Optional[dict]:
+    user = mongodb.get_collection("users").find_one({"username": username})
+    if user:
+        return {
+            "username": user["username"],
+            "hashed_password": user["password"],
+            "role": user.get("role", "user")
+        }
+    return None
+
+def authenticate_user(username: str, password: str) -> Optional[dict]:
+    user = get_user_by_username(username)
+    if not user or not verify_password(password, user["hashed_password"]):
+        return None
+    return user
+
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_user_token(username: str, role: str) -> str:
-    return create_access_token({
-        "sub": username,
-        "role": role
-    })
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenData:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-def verify_access_token(token: str) -> Optional[TokenData]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        role = payload.get("role")
-
-        if not username or not role:
-            raise JWTError("Missing fields in token")
-
+        username: str = payload.get("sub")
+        role: str = payload.get("role")
+        if username is None or role is None:
+            raise credentials_exception
         return TokenData(username=username, role=role)
-
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=TOKEN_EXPIRED)
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=INVALID_TOKEN)
-
-async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> TokenData:
-    token_data = verify_access_token(token)
-    if not token_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=UNAUTHORIZED)
-    return token_data
+    except (JWTError, ExpiredSignatureError):
+        raise credentials_exception
