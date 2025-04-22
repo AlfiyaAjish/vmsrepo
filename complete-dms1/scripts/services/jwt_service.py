@@ -35,11 +35,12 @@
 #     logger.info(f"User '{username}' is logging out.")
 #     return logout_user_handler(username)
 
+from fastapi import APIRouter, status, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 
-from fastapi import APIRouter, status
 from scripts.constants.api_endpoints import Endpoints
-from scripts.models.jwt_model import UserSignupRequest, UserLoginRequest
 from scripts.handlers.jwt_handler import signup_user_handler, login_user_handler, logout_user_handler
+from scripts.models.jwt_model import UserSignupRequest
 
 auth_router = APIRouter()
 
@@ -48,8 +49,8 @@ def signup_user(user: UserSignupRequest):
     return signup_user_handler(user)
 
 @auth_router.post(Endpoints.AUTH_LOGIN.replace("/auth", ""), status_code=status.HTTP_200_OK)
-def login_user(user: UserLoginRequest):
-    return login_user_handler(user)
+def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
+    return login_user_handler(form_data)
 
 @auth_router.post(Endpoints.AUTH_LOGOUT.replace("/auth", ""), status_code=status.HTTP_200_OK)
 def logout_user(username: str):

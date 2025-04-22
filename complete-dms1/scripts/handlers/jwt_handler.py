@@ -82,15 +82,16 @@
 
 
 from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from scripts.models.jwt_model import UserSignupRequest, Token, UserLoginRequest, UserLoginResponse
+
+from scripts.models.jwt_model import UserSignupRequest, Token, UserLoginResponse
 from scripts.utils.jwt_utils import create_user_token
 from scripts.utils.mongo_utils import MongoDBConnection
 from scripts.logging.logger import logger
 
 mongodb = MongoDBConnection()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def signup_user_handler(user: UserSignupRequest) -> Token:
     users_collection = mongodb.get_collection("users")
@@ -115,15 +116,16 @@ def signup_user_handler(user: UserSignupRequest) -> Token:
     logger.info(f"User '{user.username}' registered successfully")
 
     access_token = create_user_token(user.username, user.role)
-    return Token(access_token=access_token, token_type="bearer", expires_in=3600)  # 1-hour expiration
+    return Token(access_token=access_token, token_type="bearer", expires_in=3600)
 
-
-def login_user_handler(user_login: UserLoginRequest) -> UserLoginResponse:
+def login_user_handler(form_data: OAuth2PasswordRequestForm) -> UserLoginResponse:
     users_collection = mongodb.get_collection("users")
-    username = user_login.username
-    password = user_login.password
+
+    username = form_data.username
+    password = form_data.password
 
     user_record = users_collection.find_one({"username": username})
+
     if not user_record:
         logger.warning(f"Login failed for user '{username}' - User not found")
         raise HTTPException(
@@ -146,7 +148,6 @@ def login_user_handler(user_login: UserLoginRequest) -> UserLoginResponse:
         token_type="bearer",
         expires_in=3600
     )
-
 
 def logout_user_handler(username: str):
     if not username:
