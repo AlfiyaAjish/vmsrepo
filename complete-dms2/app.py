@@ -62,17 +62,16 @@
 #
 #     return app
 
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
+from scripts.services.jwt_service import auth_router
+from scripts.services.admin_service import admin_router
+from scripts.services.rate_limit_service import rate_limit_router
 from scripts.services.image_service import image_router
 from scripts.services.cont_service import container_router
 from scripts.services.vol_service import volume_router
-from scripts.services.admin_service import admin_router
-from scripts.services.rate_limit_service import rate_limit_router
-from scripts.services.jwt_service import auth_router
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -89,6 +88,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # ✅ Include all routers
     app.include_router(auth_router, prefix="/auth", tags=["Authentication Operations"])
     app.include_router(admin_router, prefix="/admin", tags=["Admin Operations"])
     app.include_router(rate_limit_router, prefix="/rate-limit", tags=["Rate Limit Operations"])
@@ -96,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(container_router, prefix="/container", tags=["Container Operations"])
     app.include_router(volume_router, prefix="/volume", tags=["Volume Operations"])
 
+    # ✅ OpenAPI config for OAuth2 password flow
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
@@ -108,19 +109,25 @@ def create_app() -> FastAPI:
         )
 
         openapi_schema["components"]["securitySchemes"] = {
-            "BearerAuth": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
+            "OAuth2Password": {
+                "type": "oauth2",
+                "flows": {
+                    "password": {
+                        "tokenUrl": "/auth/token",
+                        "scopes": {}
+                    }
+                }
             }
         }
 
         for path in openapi_schema["paths"].values():
             for method in path.values():
-                method.setdefault("security", [{"BearerAuth": []}])
+                method["security"] = [{"OAuth2Password": []}]
 
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
     app.openapi = custom_openapi
+
     return app
+
