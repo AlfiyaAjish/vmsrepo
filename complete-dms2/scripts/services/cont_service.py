@@ -77,13 +77,12 @@
 #     return remove_container_with_params(name, params, token=user['access_token'])
 from fastapi import APIRouter, Query, Body, Depends
 from typing import Optional
-
 from scripts.handlers.cont_handler import *
 from scripts.models.cont_model import *
 from scripts.constants.api_endpoints import Endpoints
 from scripts.logging.logger import logger
-from scripts.utils.jwt_utils import get_current_user_from_token
 from scripts.models.jwt_model import TokenData
+from scripts.utils.jwt_utils import get_current_user_from_token
 
 container_router = APIRouter()
 
@@ -92,24 +91,24 @@ def run_container_view(
     request: ContainerRunAdvancedRequest,
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' running container with basic parameters")
-    return run_container_advanced(request)
+    logger.info(f"User '{current_user.username}' running container")
+    return run_container_advanced(request, current_user)
 
 @container_router.post(Endpoints.CONTAINER_CREATE_ADVANCED)
 def run_container_advanced_view(
     data: ContainerRunAdvancedRequest,
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' running container with advanced parameters")
-    return run_container_advanced(data)
+    logger.info(f"User '{current_user.username}' running advanced container")
+    return run_container_advanced(data, current_user)
 
 @container_router.post(Endpoints.CONTAINER_LIST)
 def list_containers_view(
     params: ContainerListRequest = Body(...),
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' listing containers with filters: {params.dict(exclude_unset=True)}")
-    return list_containers_with_filters(params)
+    logger.info(f"User '{current_user.username}' listing containers")
+    return list_containers_with_filters(params, current_user)
 
 @container_router.post(Endpoints.CONTAINER_LOGS)
 def get_container_logs(
@@ -117,8 +116,7 @@ def get_container_logs(
     params: ContainerLogsRequest = Body(...),
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' fetching logs for container '{name}'")
-    return get_logs_with_params(name, params)
+    return get_logs_with_params(name, params, current_user)
 
 @container_router.post(Endpoints.CONTAINER_STOP)
 def stop_container_view(
@@ -126,16 +124,14 @@ def stop_container_view(
     timeout: Optional[float] = Query(None),
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' stopping container '{name}'")
-    return stop_container(name, timeout)
+    return stop_container(name, timeout, current_user)
 
 @container_router.post(Endpoints.CONTAINER_START)
 def start_container_view(
     name: str,
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' starting container '{name}'")
-    return start_container(name)
+    return start_container(name, current_user)
 
 @container_router.post(Endpoints.CONTAINER_DELETE)
 def remove_container_view(
@@ -143,5 +139,4 @@ def remove_container_view(
     params: ContainerRemoveRequest = Body(...),
     current_user: TokenData = Depends(get_current_user_from_token)
 ):
-    logger.info(f"User '{current_user.username}' removing container '{name}'")
-    return remove_container_with_params(name, params)
+    return remove_container_with_params(name, params, current_user)
