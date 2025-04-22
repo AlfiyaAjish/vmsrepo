@@ -44,7 +44,7 @@ from scripts.constants.api_endpoints import Endpoints
 from scripts.utils.jwt_utils import (
     authenticate_user,
     create_access_token,
-    get_current_user,
+    get_current_user_from_token,
     get_password_hash,
     get_user_by_username
 )
